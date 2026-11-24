@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>توزيع أيام العمل بالأقدمية</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b1f24;--mu:#667085;--bd:#d9dee5;--ac:#0f766e;--acx:#fff;--off:#e9ecf0;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171a;--card:#1e2328;--tx:#eceff3;--mu:#98a2b3;--bd:#323941;--ac:#2dd4bf;--acx:#06201d;--off:#262c33;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171a;--card:#1e2328;--tx:#eceff3;--mu:#98a2b3;--bd:#323941;--ac:#2dd4bf;--acx:#06201d;--off:#262c33;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.5}
+main{max-width:720px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:6px 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:14px;color:var(--mu);margin:10px 0 4px}
+input,textarea,select{width:100%;box-sizing:border-box;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:9px}
+textarea{min-height:130px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row label.chk{display:flex;align-items:center;gap:5px;color:var(--tx);margin:0}
+.row label.chk input{width:auto}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:var(--acx);cursor:pointer}
+button.sec{background:var(--off);color:var(--tx)}
+button:disabled{opacity:.5}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.turn{font-size:17px;font-weight:600;padding:12px;border-radius:12px;color:#fff;margin-bottom:10px}
+.sub{font-size:13px;opacity:.9;font-weight:400}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.hd{font-size:11px;text-align:center;color:var(--mu)}
+.d{min-height:52px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;padding:2px;cursor:pointer;color:var(--tx)}
+.d small{font-size:10px;overflow:hidden;white-space:nowrap;max-width:100%;text-overflow:ellipsis}
+.d.off{background:var(--off);color:var(--mu);cursor:default;border-style:dashed}
+.d.taken{color:#fff;border:0;cursor:default}
+.d.empty{border:0;background:none;cursor:default}
+.d.sel{outline:3px solid var(--tx);outline-offset:1px}
+.pl{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:14px}
+.pl:last-child{border:0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px}
+.note{font-size:13px;color:var(--mu)}
+.scroll{overflow-x:auto}
+@media print{.noprint{display:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>📅 توزيع أيام العمل بالأقدمية</h1>
+<div id="app"></div>
+</main>
+<script>
+var AR=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+var MON=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+var KEY='duty-picker-v1';
+var now=new Date();
+var S={started:false,ym:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'),names:'معيد 1\nمعيد 2\nمعيد 3\nمعيد 4\nمعيد 5\nمعيد 6\nمعيد 7',wd:[0,1,2,3,4,6],hol:'',mode:'block',picks:[]};
+try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);if(o&&o.names)S=o;}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function names(){return S.names.split('\n').map(function(x){return x.trim();}).filter(Boolean);}
+function col(i){return 'hsl('+(i*47%360)+',55%,38%)';}
+var FIX={'01-07':'عيد الميلاد المجيد','01-25':'عيد الشرطة وثورة 25 يناير','04-25':'عيد تحرير سيناء','05-01':'عيد العمال','06-30':'ثورة 30 يونيو','07-23':'ثورة 23 يوليو','10-06':'عيد القوات المسلحة'};
+var VAR={'2027-03-10':'عيد الفطر (متوقع، عدّل الأيام الباقية يدوي)','2027-05-03':'شم النسيم','2027-05-15':'وقفة عرفات (متوقع)','2027-05-16':'عيد الأضحى (متوقع)','2027-05-17':'عيد الأضحى (متوقع)','2027-05-18':'عيد الأضحى (متوقع)','2027-05-19':'عيد الأضحى (متوقع)','2027-06-06':'رأس السنة الهجرية (متوقع 6 أو 7)','2027-08-14':'المولد النبوي (متوقع 14 أو 15)'};
+function autoHol(){var p=S.ym.split('-'),o={};for(var d=1;d<=31;d++){var dd=(d<10?'0':'')+d,f=FIX[p[1]+'-'+dd],v=VAR[p[0]+'-'+p[1]+'-'+dd];if(f||v)o[d]=f||v;}return o;}
+function days(){
+  var p=S.ym.split('-'),y=+p[0],m=+p[1]-1,hol={},ah=autoHol(),offH=S.offHol||[];
+  Object.keys(ah).forEach(function(k){if(offH.indexOf(S.ym+'-'+k)<0)hol[+k]=1;});
+  S.hol.split(/[,،\s]+/).forEach(function(x){if(x)hol[+x]=1;});
+  var out=[],n=new Date(y,m+1,0).getDate();
+  for(var d=1;d<=n;d++){var w=new Date(y,m,d).getDay(),ov=(S.ov||{})[S.ym+'-'+d];if(ov==='on'||(ov!=='off'&&S.wd.indexOf(w)>-1&&!hol[d]))out.push(d);}
+  return out;
+}
+function targets(){
+  var n=names().length,N=days().length,tg=S.tg||{},fixed=0,free=[],t=[],p;
+  for(p=0;p<n;p++){if(tg[p]!==undefined&&tg[p]!==null){t[p]=+tg[p];fixed+=t[p];}else free.push(p);}
+  var rem=Math.max(0,N-fixed),f=free.length,q=f?Math.floor(rem/f):0,e=f?rem%f:0;
+  free.forEach(function(p,k){t[p]=q+(k>=f-e?1:0);});
+  return t;
+}
+function seq(){
+  var n=names().length,q=Math.floor(days().length/n),t=targets(),s=[],p,r;
+  var b=t.map(function(x){return Math.min(x,q);});
+  if(S.mode==='block'){for(p=0;p<n;p++)for(r=0;r<b[p];r++)s.push(p);}
+  else{for(r=0;r<q;r++)for(p=0;p<n;p++)if(r<b[p])s.push(p);}
+  for(p=n-1;p>=0;p--)for(r=q;r<t[p];r++)s.push(p);
+  return s;
+}
+function curTurn(){
+  var s=seq(),c={},i;
+  S.picks.forEach(function(k){c[k.p]=(c[k.p]||0)+1;});
+  for(i=0;i<s.length;i++){if(c[s[i]]>0)c[s[i]]--;else return {p:s[i],i:i};}
+  return null;
+}
+function adj(i,dl){
+  var t=targets(),v=t[i]+dl;if(v<0)return;
+  var mine=S.picks.filter(function(k){return k.p===i;}).length;
+  if(v<mine&&!confirm('عدد أيامه المختارة أكبر من الحصة الجديدة. تكمل؟'))return;
+  S.tg=S.tg||{};S.tg[i]=v;save();render();
+}
+var SM=false,SF=null;
+function swapPick(d){
+  var o=owner(d),nm=names();
+  if(SF===null){if(o<0){alert('اختار الأول يوم متاخد (اليوم اللي المعيد هيتخلى عنه)');return;}SF=d;render();return;}
+  if(SF===d){SF=null;render();return;}
+  var a=owner(SF);
+  if(o>-1){
+    if(o===a){SF=d;render();return;}
+    if(!confirm('تبديل: يوم '+SF+' ('+nm[a]+') ⇄ يوم '+d+' ('+nm[o]+') ؟'))return;
+    S.picks.forEach(function(k){if(k.d===SF)k.d=d;else if(k.d===d)k.d=SF;});
+  }else{
+    if(!confirm('نقل يوم '+SF+' للمعيد '+nm[a]+' إلى يوم '+d+' ؟'))return;
+    S.picks.forEach(function(k){if(k.d===SF)k.d=d;});
+  }
+  SF=null;save();render();
+}
+function setF(k,v){S[k]=v;save();}
+function toggleWd(i,on){var a=S.wd.filter(function(x){return x!==i;});if(on)a.push(i);S.wd=a;save();}
+function toggleHol(d,on){var k=S.ym+'-'+d,a=(S.offHol||[]).filter(function(x){return x!==k;});if(!on)a.push(k);S.offHol=a;save();}
+var EM=false;
+function togDay(d){
+  var k=S.ym+'-'+d,ov=S.ov||(S.ov={});
+  if(days().indexOf(d)>-1){
+    if(owner(d)>-1){if(!confirm('اليوم ده متاخد. لو خليته إجازة هيتلغي اختيار المعيد. تكمل؟'))return;S.picks=S.picks.filter(function(x){return x.d!==d;});}
+    ov[k]='off';
+  }else ov[k]='on';
+  save();render();
+}
+function start(){
+  var n=names().length;
+  if(n<2){alert('اكتب أسماء المعيدين (كل اسم في سطر)');return;}
+  if(days().length<n){alert('عدد أيام العمل أقل من عدد المعيدين');return;}
+  S.picks=[];S.tg={};S.started=true;save();render();
+}
+function pick(d){var t=curTurn();if(!t)return;S.picks.push({d:d,p:t.p});save();render();}
+function undo(){S.picks.pop();save();render();}
+function back(){if(S.picks.length&&!confirm('الرجوع للإعدادات هيمسح الاختيارات. متأكد؟'))return;S.started=false;S.picks=[];save();render();}
+function owner(d){for(var i=0;i<S.picks.length;i++)if(S.picks[i].d===d)return S.picks[i].p;return -1;}
+function summary(){
+  var nm=names(),r=nm.map(function(){return [];});
+  S.picks.forEach(function(k){r[k.p].push(k.d);});
+  return r.map(function(a,i){a.sort(function(x,y){return x-y;});return nm[i]+' ('+a.length+'): '+a.join('، ');}).join('\n');
+}
+function copyRes(){
+  var t='جدول أيام العمل — '+MON[+S.ym.split('-')[1]-1]+' '+S.ym.split('-')[0]+'\n'+summary();
+  try{navigator.clipboard.writeText(t).then(function(){alert('تم النسخ');},function(){prompt('انسخ النص:',t);});}catch(e){prompt('انسخ النص:',t);}
+}
+function mkpdf(jpg,w,h){
+  var NL=String.fromCharCode(10),enc=new TextEncoder(),parts=[],off=[],len=0,pw=595,ph=842;
+  function add(u){parts.push(u);len+=u.length;}
+  function s(t){add(enc.encode(t));}
+  function obj(n,b){off[n]=len;s(n+' 0 obj'+NL+b+NL+'endobj'+NL);}
+  s('%PDF-1.4'+NL);
+  obj(1,'<</Type/Catalog/Pages 2 0 R>>');
+  obj(2,'<</Type/Pages/Kids[3 0 R]/Count 1>>');
+  obj(3,'<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+pw+' '+ph+']/Resources<</XObject<</Im0 4 0 R>>>>/Contents 5 0 R>>');
+  off[4]=len;s('4 0 obj'+NL+'<</Type/XObject/Subtype/Image/Width '+w+'/Height '+h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jpg.length+'>>'+NL+'stream'+NL);add(jpg);s(NL+'endstream'+NL+'endobj'+NL);
+  var cs='q '+pw+' 0 0 '+ph+' 0 0 cm /Im0 Do Q';
+  obj(5,'<</Length '+cs.length+'>>'+NL+'stream'+NL+cs+NL+'endstream');
+  var xr=len;s('xref'+NL+'0 6'+NL+'0000000000 65535 f '+NL);
+  for(var i=1;i<=5;i++)s(String(off[i]).padStart(10,'0')+' 00000 n '+NL);
+  s('trailer'+NL+'<</Size 6/Root 1 0 R>>'+NL+'startxref'+NL+xr+NL+'%%EOF');
+  return new Blob(parts,{type:'application/pdf'});
+}
+async function pdf(){
+  var nm=names(),r=nm.map(function(){return [];}),i,j;
+  S.picks.forEach(function(k){r[k.p].push(k.d);});
+  var W=1240,H=1754,c=document.createElement('canvas');c.width=W;c.height=H;
+  var x=c.getContext('2d'),F='Tahoma, Arial, sans-serif',p=S.ym.split('-');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.direction='rtl';x.textAlign='right';
+  x.font='bold 46px '+F;x.fillText('جدول أيام العمل — '+MON[+p[1]-1]+' '+p[0],W-70,120);
+  var ds=days(),cw=[220,280,600],X0=W-70,y=170,rh=Math.min(70,Math.floor((H-250)/(ds.length+1)));
+  var rows=[['م','المعيد','عدد الأيام','الأيام']];
+  nm.forEach(function(n,k){var a=r[k].slice().sort(function(u,v){return u-v;});rows.push([String(k+1),n,String(a.length),a.join('، ')||'—']);});
+  rows=[['التاريخ','اليوم','المعيد']];
+  var own={};S.picks.forEach(function(k){own[k.d]=k.p;});
+  ds.forEach(function(d){rows.push([d+'/'+(+p[1]),AR[new Date(+p[0],+p[1]-1,d).getDay()],own[d]!==undefined?nm[own[d]]:'—']);});
+  rows.forEach(function(row,ri){
+    var xr=X0;
+    for(j=0;j<3;j++){
+      var cx=xr-cw[j];
+      x.fillStyle=ri===0?'#d9e4e2':'#fff';x.fillRect(cx,y,cw[j],rh);
+      x.strokeStyle='#888';x.lineWidth=2;x.strokeRect(cx,y,cw[j],rh);
+      x.fillStyle='#111';
+      var fs=ri===0?30:28;x.font=(ri===0?'bold ':'')+fs+'px '+F;
+      while(x.measureText(row[j]).width>cw[j]-24&&fs>12){fs-=2;x.font=(ri===0?'bold ':'')+fs+'px '+F;}
+      x.fillText(row[j],xr-12,y+rh/2+fs/3);
+      xr=cx;
+    }
+    y+=rh;
+  });
+  var b=await new Promise(function(res){c.toBlob(res,'image/jpeg',0.92);});
+  var jpg=new Uint8Array(await b.arrayBuffer()),blob=mkpdf(jpg,W,H);
+  var u=URL.createObjectURL(blob),l=document.createElement('a');
+  l.href=u;l.download='duty-'+S.ym+'.pdf';document.body.appendChild(l);l.click();
+  setTimeout(function(){URL.revokeObjectURL(u);l.remove();},2000);
+}
+function render(){
+  var A=document.getElementById('app'),h='';
+  if(!S.started){
+    var wd='';var ah=autoHol(),hb='',offH=S.offHol||[];Object.keys(ah).forEach(function(k){hb+='<label class="chk"><input type="checkbox" '+(offH.indexOf(S.ym+'-'+k)<0?'checked':'')+' onchange="toggleHol('+k+',this.checked)"> '+k+' — '+esc(ah[k])+'</label>';});hb=hb?'<label>إجازات رسمية تلقائية في الشهر ده (شيل العلامة لو اليوم مش إجازة عندكم)</label><div class="row" style="flex-direction:column;gap:4px">'+hb+'</div>':'<p class="note">مفيش إجازات رسمية مسجلة في الشهر ده.</p>';
+    [6,0,1,2,3,4,5].forEach(function(i){wd+='<label class="chk"><input type="checkbox" '+(S.wd.indexOf(i)>-1?'checked':'')+' onchange="toggleWd('+i+',this.checked)"> '+AR[i]+'</label>';});
+    h='<div class="card"><label>الشهر</label><input type="month" value="'+S.ym+'" onchange="setF(\'ym\',this.value);render()">'
+     +'<label>أسماء المعيدين (كل اسم في سطر — الأقدم في الأول والأحدث في الآخر)</label><textarea oninput="setF(\'names\',this.value)">'+esc(S.names)+'</textarea>'
+     +'<label>أيام الأسبوع اللي فيها عمل</label><div class="row">'+wd+'</div>'
+     +hb+'<label>إجازات إضافية (أرقام الأيام مفصولة بفاصلة، مثال: 6, 25)</label><input value="'+esc(S.hol)+'" oninput="setF(\'hol\',this.value)">'
+     +'<label>طريقة الاختيار</label><select onchange="setF(\'mode\',this.value)"><option value="block"'+(S.mode==='block'?' selected':'')+'>الأقدم يختار كل أيامه مرة واحدة، وبعده اللي بعده</option><option value="round"'+(S.mode==='round'?' selected':'')+'>دورات: كل واحد يختار يوم واحد في كل دور بترتيب الأقدمية</option></select>'
+     +'<p class="note">الأيام بتتقسم بالتساوي. أي أيام زيادة عن القسمة بتتوزع بعد كده من الأحدث للأقدم، يوم لكل واحد.</p>'
+     +'<div class="bar"><button onclick="start()">ابدأ الاختيار</button></div></div>';
+    A.innerHTML=h;return;
+  }
+  var nm=names(),ds=days(),s=seq(),q=Math.floor(ds.length/nm.length),e=ds.length%nm.length;
+  var CT=curTurn(),done=!CT,cur=CT?CT.p:-1,tg=targets(),bsum=tg.reduce(function(a,x){return a+Math.min(x,q);},0),tsum=tg.reduce(function(a,x){return a+x;},0);
+  var p=S.ym.split('-'),y=+p[0],m=+p[1]-1;
+  var ah=autoHol(),offH=S.offHol||[];
+  if(done){h+='<div class="turn" style="background:var(--ac);color:var(--acx)">✅ تم توزيع كل الأيام</div>';}
+  else{
+    var cnt=0;for(var i=0;i<S.picks.length;i++)if(S.picks[i].p===cur)cnt++;
+    var tot=s.filter(function(x){return x===cur;}).length;
+    h+='<div class="turn" style="background:'+col(cur)+'">الدور على: '+esc(nm[cur])+'<div class="sub">بيختار اليوم رقم '+(cnt+1)+' من '+tot+' · الاختيار رقم '+(S.picks.length+1)+' من '+s.length+(CT&&CT.i>=bsum?' (توزيع الأيام الزيادة)':'')+'</div></div>';
+  }
+  h+='<div class="card"><b>'+MON[m]+' '+y+'</b> <span class="note">— '+ds.length+' يوم عمل'+'</span><div class="scroll" style="margin-top:8px"><div class="cal">';
+  [6,0,1,2,3,4,5].forEach(function(i){h+='<div class="hd">'+AR[i]+'</div>';});
+  var first=new Date(y,m,1).getDay(),off=(first+1)%7,n=new Date(y,m+1,0).getDate(),k;
+  for(k=0;k<off;k++)h+='<div class="d empty"></div>';
+  for(var d=1;d<=n;d++){
+    var o=owner(d);
+    if(SM){var w0=ds.indexOf(d)>=0;
+      if(!w0)h+='<div class="d off">'+d+'</div>';
+      else h+='<button class="d'+(o>-1?' taken':'')+(SF===d?' sel':'')+'"'+(o>-1?' style="background:'+col(o)+'"':'')+' onclick="swapPick('+d+')">'+d+(o>-1?'<small>'+esc(nm[o])+'</small>':'')+'</button>';
+      continue;}
+    if(EM){var off0=ds.indexOf(d)<0;h+='<button class="d'+(off0?' off':(o>-1?' taken':''))+'"'+(o>-1&&!off0?' style="background:'+col(o)+'"':'')+' onclick="togDay('+d+')">'+d+(off0?'<small>إجازة</small>':(o>-1?'<small>'+esc(nm[o])+'</small>':''))+'</button>';continue;}
+    if(ds.indexOf(d)<0)h+='<div class="d off" title="'+esc(ah[d]||'')+'">'+d+((ah[d]&&offH.indexOf(S.ym+'-'+d)<0||(S.ov||{})[S.ym+'-'+d]==='off')?'<small>إجازة</small>':'')+'</div>';
+    else if(o>-1)h+='<div class="d taken" style="background:'+col(o)+'">'+d+'<small>'+esc(nm[o])+'</small></div>';
+    else if(done)h+='<div class="d">'+d+'</div>';
+    else h+='<button class="d" onclick="pick('+d+')">'+d+'</button>';
+  }
+  h+='</div></div></div><div class="card noprint"><div class="bar" style="margin:0"><button class="sec" onclick="undo()" '+(S.picks.length?'':'disabled')+'>↩️ تراجع عن آخر اختيار</button><button class="sec" onclick="SM=!SM;EM=false;SF=null;render()">'+(SM?'✔️ إنهاء التبديل (اختار يوم متاخد ثم يوم تاني)':'🔄 تبديل أيام')+'</button><button class="sec" onclick="EM=!EM;SM=false;SF=null;render()">'+(EM?'✔️ إنهاء التعديل (اضغط على اليوم لتغييره)':'🗓️ تعديل الإجازات')+'</button><button class="sec" onclick="back()">⚙️ الإعدادات</button></div></div>';
+  h+='<div class="card"><b>أيام كل معيد (بترتيب الأقدمية)</b>'+(tsum!==ds.length?'<p class="note">⚠️ مجموع الحصص '+tsum+' ومش بيساوي عدد أيام العمل '+ds.length+'</p>':'');
+  var r=nm.map(function(){return [];});S.picks.forEach(function(x){r[x.p].push(x.d);});
+  nm.forEach(function(x,i){
+    var a=r[i].sort(function(u,v){return u-v;}),tot=s.filter(function(z){return z===i;}).length;
+    h+='<div class="pl"><span><span class="dot" style="background:'+col(i)+'"></span>'+(i+1)+'. '+esc(x)+(i===cur?' ◀':'')+'</span><span>'+(a.join('، ')||'—')+' <span class="note">('+a.length+'/'+tot+')</span> <span class="noprint"><button class="sec" style="padding:2px 9px" onclick="adj('+i+',-1)">−</button> <button class="sec" style="padding:2px 9px" onclick="adj('+i+',1)">+</button></span></span></div>';
+  });
+  h+='<div class="bar noprint"><button onclick="copyRes()">نسخ الجدول</button><button class="sec" onclick="S.tg={};save();render()">⚖️ إعادة التقسيم بالتساوي</button><button class="sec" onclick="pdf()">تحميل PDF</button></div></div>';
+  A.innerHTML=h;
+}
+render();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
