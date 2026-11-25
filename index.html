@@ -48,7 +48,7 @@ button:disabled{opacity:.5}
 <main>
 <h1>📅 توزيع أيام العمل بالأقدمية</h1>
 <div id="app"></div>
-<p class="note noprint" style="text-align:center;margin-top:18px">الإصدار 2 · 25-11-2026 · ترويسة جديدة</p>
+<p class="note noprint" style="text-align:center;margin-top:18px">الإصدار 3 · 25-11-2026 · الاسم الأول في التقويم</p>
 </main>
 <script>
 var AR=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -59,6 +59,7 @@ var S={started:false,ym:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(
 try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);if(o&&o.names)S=o;}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function fn(n){var w=String(n).trim().split(/\s+/);if(w.length>1&&/^(عبد|ابو|أبو|أبي|ام|أم)$/.test(w[0]))return w[0]+' '+w[1];return w[0]||'';}
 function names(){return S.names.split('\n').map(function(x){return x.trim();}).filter(Boolean);}
 function col(i){return 'hsl('+(i*47%360)+',55%,38%)';}
 var FIX={'01-07':'عيد الميلاد المجيد','01-25':'عيد الشرطة وثورة 25 يناير','04-25':'عيد تحرير سيناء','05-01':'عيد العمال','06-30':'ثورة 30 يونيو','07-23':'ثورة 23 يوليو','10-06':'عيد القوات المسلحة'};
@@ -290,11 +291,11 @@ function render(){
     var o=owner(d);
     if(SM){var w0=ds.indexOf(d)>=0;
       if(!w0)h+='<div class="d off">'+d+'</div>';
-      else h+='<button class="d'+(o>-1?' taken':'')+(SF===d?' sel':'')+'"'+(o>-1?' style="background:'+col(o)+'"':'')+' onclick="swapPick('+d+')">'+d+(o>-1?'<small>'+esc(nm[o])+'</small>':'')+'</button>';
+      else h+='<button class="d'+(o>-1?' taken':'')+(SF===d?' sel':'')+'"'+(o>-1?' style="background:'+col(o)+'"':'')+' onclick="swapPick('+d+')">'+d+(o>-1?'<small>'+esc(fn(nm[o]))+'</small>':'')+'</button>';
       continue;}
-    if(EM){var off0=ds.indexOf(d)<0;h+='<button class="d'+(off0?' off':(o>-1?' taken':''))+'"'+(o>-1&&!off0?' style="background:'+col(o)+'"':'')+' onclick="togDay('+d+')">'+d+(off0?'<small>إجازة</small>':(o>-1?'<small>'+esc(nm[o])+'</small>':''))+'</button>';continue;}
+    if(EM){var off0=ds.indexOf(d)<0;h+='<button class="d'+(off0?' off':(o>-1?' taken':''))+'"'+(o>-1&&!off0?' style="background:'+col(o)+'"':'')+' onclick="togDay('+d+')">'+d+(off0?'<small>إجازة</small>':(o>-1?'<small>'+esc(fn(nm[o]))+'</small>':''))+'</button>';continue;}
     if(ds.indexOf(d)<0)h+='<div class="d off" title="'+esc(ah[d]||'')+'">'+d+((ah[d]&&offH.indexOf(S.ym+'-'+d)<0||(S.ov||{})[S.ym+'-'+d]==='off')?'<small>إجازة</small>':'')+'</div>';
-    else if(o>-1)h+='<div class="d taken" style="background:'+col(o)+'">'+d+'<small>'+esc(nm[o])+'</small></div>';
+    else if(o>-1)h+='<div class="d taken" style="background:'+col(o)+'">'+d+'<small>'+esc(fn(nm[o]))+'</small></div>';
     else if(done)h+='<div class="d">'+d+'</div>';
     else h+='<button class="d" onclick="pick('+d+')">'+d+'</button>';
   }
